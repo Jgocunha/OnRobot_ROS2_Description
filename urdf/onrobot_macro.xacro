@@ -7,6 +7,7 @@
         onrobot_type
         prefix:=''
         sim_gazebo:=false
+        emit_gz_plugin:=true
         use_fake_hardware:=false
         connection_type:=serial
         device:=/tmp/ttyUR
@@ -23,18 +24,21 @@
             <xacro:onrobot_rg6 prefix="${prefix}"/>
         </xacro:if>
 
-        <!-- Enable the gazebo plugin for simulation -->
-        <xacro:if value="${sim_gazebo}">
+        <!-- Enable the Gazebo Sim (Fortress) ros2_control plugin for simulation.
+             Set emit_gz_plugin:=false when a parent URDF provides the single plugin
+             block (e.g. several grippers/arms sharing one controller_manager). -->
+        <xacro:if value="${sim_gazebo and emit_gz_plugin}">
             <gazebo>
-                <plugin filename="libgazebo_ros2_control.so" name="gazebo_ros2_control"/>
+                <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin"/>
             </gazebo>
         </xacro:if>
 
-        <!-- Define the OnRobot gripper hardware interface for ROS 2 control -->
-        <ros2_control name="OnRobotGripper" type="actuator">
+        <!-- Define the OnRobot gripper hardware interface for ROS 2 control.
+             Name is prefixed so several grippers can coexist in one resource manager. -->
+        <ros2_control name="${prefix}OnRobotGripper" type="${'system' if sim_gazebo else 'actuator'}">
             <hardware>
                 <xacro:if value="${sim_gazebo}">
-                    <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+                    <plugin>gz_ros2_control/GazeboSimSystem</plugin>
                 </xacro:if>
                 <xacro:if value="${use_fake_hardware}">
                     <plugin>test_hardware_components/TestSingleJointActuator</plugin>
