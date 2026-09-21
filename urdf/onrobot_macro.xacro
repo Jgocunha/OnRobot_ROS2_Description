@@ -56,7 +56,30 @@
             <joint name="${prefix}finger_width">
                 <command_interface name="position"/>
                 <state_interface name="position"/>
+                <xacro:if value="${sim_gazebo}">
+                    <!-- GripperActionController claims position + velocity state -->
+                    <state_interface name="velocity"/>
+                </xacro:if>
             </joint>
+
+            <!-- gz_ros2_control drives mimic joints itself: each must be listed in the same
+                 ros2_control block with the mimicked joint and a multiplier (no offset support,
+                 see finger_joint_multiplier in the rgX_macro.xacro). -->
+            <xacro:if value="${sim_gazebo}">
+                <xacro:macro name="gz_mimic_joint" params="name k">
+                    <joint name="${prefix}${name}">
+                        <param name="mimic">${prefix}finger_width</param>
+                        <param name="multiplier">${k * finger_joint_multiplier}</param>
+                        <state_interface name="position"/>
+                    </joint>
+                </xacro:macro>
+                <xacro:gz_mimic_joint name="finger_joint" k="1"/>
+                <xacro:gz_mimic_joint name="left_inner_knuckle_joint" k="-1"/>
+                <xacro:gz_mimic_joint name="left_inner_finger_joint" k="1"/>
+                <xacro:gz_mimic_joint name="right_outer_knuckle_joint" k="-1"/>
+                <xacro:gz_mimic_joint name="right_inner_knuckle_joint" k="-1"/>
+                <xacro:gz_mimic_joint name="right_inner_finger_joint" k="1"/>
+            </xacro:if>
         </ros2_control>
 
     </xacro:macro>
