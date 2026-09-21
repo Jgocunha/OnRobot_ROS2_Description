@@ -66,13 +66,6 @@
     <xacro:finger_joints prefix="${prefix}" fingerprefix="right" reflect="-1.0"/>
   </xacro:macro>
 
-  <link name="${prefix}gripper_tcp" />
-  <joint name="${prefix}tcp_joint" type="fixed">
-    <origin xyz="0 0 0.218" rpy="0 0 0" />
-    <parent link="${prefix}onrobot_base_link" />
-    <child link="${prefix}gripper_tcp" />
-  </joint>
-
   <xacro:macro name="onrobot_rg2" params="prefix">
     <xacro:onrobot_base_link prefix="${prefix}" />
     <xacro:finger_links prefix="${prefix}" fingerprefix="left"/>
@@ -80,5 +73,11 @@
     <xacro:finger_joint prefix="${prefix}"/>
     <xacro:right_outer_knuckle_joint prefix="${prefix}"/>
     <xacro:transmission_macro prefix="${prefix}" joint_name="finger_width"/>
+    <link name="${prefix}gripper_tcp" />
+    <joint name="${prefix}tcp_joint" type="fixed">
+      <origin xyz="0 0 0.218" rpy="0 0 0" />
+      <parent link="${prefix}onrobot_base_link" />
+      <child link="${prefix}gripper_tcp" />
+    </joint>
   </xacro:macro>
 </robot>
