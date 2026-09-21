@@ -2,26 +2,34 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
   <xacro:property name="onrobot_type" value="rg2" />
+  <!--
+    finger_joint = finger_joint_multiplier * finger_width, with NO offset.
+    gz_ros2_control mimic joints support a multiplier only, so each finger joint's zero is placed
+    at finger_width = 0 by rotating its joint origin by the former offset about the joint axis and
+    shifting its limits by the same amount. Link poses for a given finger_width are unchanged.
+  -->
+  <xacro:property name="finger_joint_offset" value="0.785398" />
+  <xacro:property name="finger_joint_multiplier" value="${0.85 * ((-0.558505 - 0.785398) / 0.110)}" />
   <xacro:include filename="$(find onrobot_description)/urdf/inc/rg_common.xacro" />
 
   <xacro:macro name="inner_knuckle_joint" params="prefix fingerprefix reflect">
     <joint name="${prefix}${fingerprefix}_inner_knuckle_joint" type="revolute">
-      <origin xyz="0 ${reflect * -0.007678} 0.1422970" rpy="0 0 ${(reflect - 1) * pi / 2}" />
+      <origin xyz="0 ${reflect * -0.007678} 0.1422970" rpy="${-finger_joint_offset} 0 ${(reflect - 1) * pi / 2}" />
       <parent link="${prefix}onrobot_base_link" />
       <child link="${prefix}${fingerprefix}_inner_knuckle" />
       <axis xyz="1 0 0" />
-      <limit lower="-0.785398" upper="0.785398" velocity="100.0" effort="1000" />
+      <limit lower="${-0.785398 + finger_joint_offset}" upper="${0.785398 + finger_joint_offset}" velocity="100.0" effort="1000" />
       <mimic joint="${prefix}finger_joint" multiplier="-1" offset="0" />
     </joint>
   </xacro:macro>
 
   <xacro:macro name="inner_finger_joint" params="prefix fingerprefix">
     <joint name="${prefix}${fingerprefix}_inner_finger_joint" type="revolute">
-      <origin xyz="0 ${-(0.056770-0.017178)} ${0.163974-0.125797}" rpy="0 0 0" />
+      <origin xyz="0 ${-(0.056770-0.017178)} ${0.163974-0.125797}" rpy="${finger_joint_offset} 0 0" />
       <parent link="${prefix}${fingerprefix}_outer_knuckle" />
       <child link="${prefix}${fingerprefix}_inner_finger" />
       <axis xyz="1 0 0" />
-      <limit lower="-0.872665" upper="0.872665" velocity="100.0" effort="1000" />
+      <limit lower="${-0.872665 - finger_joint_offset}" upper="${0.872665 - finger_joint_offset}" velocity="100.0" effort="1000" />
       <mimic joint="${prefix}finger_joint" multiplier="1" offset="0" />
     </joint>
 
@@ -34,7 +42,13 @@
   </xacro:macro>
   
   <xacro:macro name="finger_joint" params="prefix">
-    <link name="${prefix}finger_width_mock_link"/>
+    <!-- tiny inertia: without it the URDF->SDF conversion drops this link and finger_width with it -->
+    <link name="${prefix}finger_width_mock_link">
+      <inertial>
+        <mass value="0.001" />
+        <inertia ixx="1e-7" ixy="0" ixz="0" iyy="1e-7" iyz="0" izz="1e-7" />
+      </inertial>
+    </link>
     <joint name="${prefix}finger_width" type="prismatic">
       <origin xyz="0 0 0" rpy="0 0 0" />
       <parent link="${prefix}onrobot_base_link" />
@@ -44,23 +58,23 @@
     </joint>
 
     <joint name="${prefix}finger_joint" type="revolute">
-      <origin xyz="0 -0.017178 0.125797" rpy="0 0 0" />
+      <origin xyz="0 -0.017178 0.125797" rpy="${-finger_joint_offset} 0 0" />
       <parent link="${prefix}onrobot_base_link" />
       <child link="${prefix}left_outer_knuckle" />
       <axis xyz="-1 0 0" />
-      <limit lower="-0.558505" upper="0.785398" velocity="100.0" effort="1000" />
-      <mimic joint="${prefix}finger_width" multiplier="${0.85 * ((-0.558505 - 0.785398) / 0.110)}" offset="0.785398" />
+      <limit lower="${-0.558505 - finger_joint_offset}" upper="${0.785398 - finger_joint_offset}" velocity="100.0" effort="1000" />
+      <mimic joint="${prefix}finger_width" multiplier="${finger_joint_multiplier}" offset="0" />
     </joint>
     <xacro:finger_joints prefix="${prefix}" fingerprefix="left" reflect="1.0"/>
   </xacro:macro>
 
   <xacro:macro name="right_outer_knuckle_joint" params="prefix">
     <joint name="${prefix}right_outer_knuckle_joint" type="revolute">
-      <origin xyz="0 0.017178 0.125797" rpy="0 0 ${pi}" />
+      <origin xyz="0 0.017178 0.125797" rpy="${-finger_joint_offset} 0 ${pi}" />
       <parent link="${prefix}onrobot_base_link" />
       <child link="${prefix}right_outer_knuckle" />
       <axis xyz="1 0 0" />
-      <limit lower="-0.785398" upper="0.785398" velocity="100.0" effort="1000" />
+      <limit lower="${-0.785398 + finger_joint_offset}" upper="${0.785398 + finger_joint_offset}" velocity="100.0" effort="1000" />
       <mimic joint="${prefix}finger_joint" multiplier="-1" offset="0" />
     </joint>
     <xacro:finger_joints prefix="${prefix}" fingerprefix="right" reflect="-1.0"/>
