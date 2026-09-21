@@ -9,6 +9,11 @@
     shifting its limits by the same amount. Link poses for a given finger_width are unchanged.
   -->
   <xacro:property name="finger_joint_offset" value="0.628319" />
+  <!-- Fully closed (finger_width = 0) would put finger_joint and the knuckles exactly on a
+       position limit. In Gazebo (DART) a velocity-servoed joint resting on its limit ignores
+       further commands (dartsim/dart#1583) and the gripper gets stuck, so the limits on the
+       closing side get a small slack. finger_width limits still bound the real opening. -->
+  <xacro:property name="closed_limit_slack" value="0.05" />
   <xacro:property name="finger_joint_multiplier" value="${0.88 * ((-0.628319 - 0.628319) / 0.160)}" />
   <xacro:include filename="$(find onrobot_description)/urdf/inc/rg_common.xacro" />
 
@@ -18,7 +23,7 @@
       <parent link="${prefix}onrobot_base_link" />
       <child link="${prefix}${fingerprefix}_inner_knuckle" />
       <axis xyz="1 0 0" />
-      <limit lower="${-0.628319 + finger_joint_offset}" upper="${0.628319 + finger_joint_offset}" velocity="2.0" effort="1000" />
+      <limit lower="${-0.628319 + finger_joint_offset - closed_limit_slack}" upper="${0.628319 + finger_joint_offset}" velocity="2.0" effort="1000" />
       <mimic joint="${prefix}finger_joint" multiplier="-1" offset="0" />
     </joint>
   </xacro:macro>
@@ -41,7 +46,7 @@
     </joint>
   </xacro:macro>
 
-  <xacro:macro name="finger_joint" params="prefix">
+  <xacro:macro name="finger_joint" params="prefix actuated_joint">
     <!-- tiny inertia: without it the URDF->SDF conversion drops this link and finger_width with it -->
     <link name="${prefix}finger_width_mock_link">
       <inertial>
@@ -55,6 +60,9 @@
       <child link="${prefix}finger_width_mock_link" />
       <axis xyz="0 0 1" />
       <limit lower="0" upper="0.160" velocity="0.160" effort="120" />
+      <xacro:if value="${actuated_joint == 'finger_joint'}">
+        <mimic joint="${prefix}finger_joint" multiplier="${1.0 / finger_joint_multiplier}" offset="0" />
+      </xacro:if>
     </joint>
 
     <joint name="${prefix}finger_joint" type="revolute">
@@ -62,8 +70,10 @@
       <parent link="${prefix}onrobot_base_link" />
       <child link="${prefix}left_outer_knuckle" />
       <axis xyz="-1 0 0" />
-      <limit lower="${-0.628319 - finger_joint_offset}" upper="${0.628319 - finger_joint_offset}" velocity="2.0" effort="1000" />
-      <mimic joint="${prefix}finger_width" multiplier="${finger_joint_multiplier}" offset="0" />
+      <limit lower="${-0.628319 - finger_joint_offset}" upper="${0.628319 - finger_joint_offset + closed_limit_slack}" velocity="2.0" effort="1000" />
+      <xacro:if value="${actuated_joint == 'finger_width'}">
+        <mimic joint="${prefix}finger_width" multiplier="${finger_joint_multiplier}" offset="0" />
+      </xacro:if>
     </joint>
     <xacro:finger_joints prefix="${prefix}" fingerprefix="left" reflect="1.0"/>
   </xacro:macro>
@@ -74,19 +84,22 @@
       <parent link="${prefix}onrobot_base_link" />
       <child link="${prefix}right_outer_knuckle" />
       <axis xyz="1 0 0" />
-      <limit lower="${-0.628319 + finger_joint_offset}" upper="${0.628319 + finger_joint_offset}" velocity="2.0" effort="1000" />
+      <limit lower="${-0.628319 + finger_joint_offset - closed_limit_slack}" upper="${0.628319 + finger_joint_offset}" velocity="2.0" effort="1000" />
       <mimic joint="${prefix}finger_joint" multiplier="-1" offset="0" />
     </joint>
     <xacro:finger_joints prefix="${prefix}" fingerprefix="right" reflect="-1.0"/>
   </xacro:macro>
 
-  <xacro:macro name="onrobot_rg6" params="prefix">
+  <!-- actuated_joint: finger_width (prismatic opening [m], default, matches the real driver) or
+       finger_joint (knuckle angle [rad], used in Gazebo: driving the massless finger_width
+       slider through the physics engine is unreliable). The other one becomes a mimic. -->
+  <xacro:macro name="onrobot_rg6" params="prefix actuated_joint:=finger_width">
     <xacro:onrobot_base_link prefix="${prefix}" />
     <xacro:finger_links prefix="${prefix}" fingerprefix="left"/>
     <xacro:finger_links prefix="${prefix}" fingerprefix="right"/>
-    <xacro:finger_joint prefix="${prefix}"/>
+    <xacro:finger_joint prefix="${prefix}" actuated_joint="${actuated_joint}"/>
     <xacro:right_outer_knuckle_joint prefix="${prefix}"/>
-    <xacro:transmission_macro prefix="${prefix}" joint_name="finger_width"/>
+    <xacro:transmission_macro prefix="${prefix}" joint_name="${actuated_joint}"/>
     <link name="${prefix}gripper_tcp"/>
     <joint name="${prefix}tcp_joint" type="fixed">
       <origin xyz="0 0 0.268" rpy="0 0 0" />
