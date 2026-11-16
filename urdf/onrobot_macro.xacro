@@ -60,10 +60,9 @@
             <joint name="${prefix}${actuated_joint}">
                 <command_interface name="position"/>
                 <state_interface name="position"/>
-                <xacro:if value="${sim_gazebo}">
-                    <!-- GripperActionController claims position + velocity state -->
-                    <state_interface name="velocity"/>
-                </xacro:if>
+                <!-- GripperActionController claims position + velocity state, in every mode
+                     (the real driver estimates the velocity from successive width readings) -->
+                <state_interface name="velocity"/>
             </joint>
 
             <!-- gz_ros2_control drives mimic joints itself: each must be listed in the same
